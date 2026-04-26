@@ -1,0 +1,49 @@
+name: Daily Arxiv Paper Analysis
+
+# 触发条件
+on:
+  schedule:
+    # 每天北京时间早上 8:00 运行 (UTC 时间 0:00)
+    - cron: '0 0 * * *'
+  # 允许在 GitHub 网页端手动点击运行
+  workflow_dispatch:
+
+# 必须赋予写权限，这样机器人才能把生成的 JSON 和 MD 文件提交回仓库
+permissions:
+  contents: write
+
+jobs:
+  run-paper-analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install arxiv google-generativeai
+
+    - name: Run script
+      env:
+        # 从 GitHub Secrets 中读取 API Key
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      run: python run.py
+
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action Bot"
+        
+        # 将生成的 json 记录和 markdown 报告加入暂存区
+        git add analyzed_papers.json daily_reports/ || echo "No files to add"
+        
+        # 提交并推送到当前分支，如果今天没有新论文则跳过报错
+        git commit -m "🤖 Auto update daily papers analysis [skip ci]" || echo "No changes to commit"
+        git push
