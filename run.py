@@ -299,31 +299,6 @@ def analyze_papers_with_gemini(papers):
                 # 合并两轮的回答
                 full_response = full_response1 + "\n\n---\n\n" + full_response2
                 
-                # 尝试从回复中解析出“架构图页码”
-                image_md = ""
-                img_filepath = ""
-                match = re.search(r'【架构图页码：(\d+)】', full_response)
-                if match:
-                    page_num = int(match.group(1))
-                    print(f"👉 [系统] Gemini 指示核心架构图在第 {page_num} 页，正在尝试截取...")
-                    try:
-                        import fitz  # PyMuPDF
-                        doc = fitz.open(pdf_filename)
-                        if 0 < page_num <= len(doc):
-                            # PyMuPDF 的页码是从 0 开始的
-                            page = doc.load_page(page_num - 1)
-                            # 渲染当前页为高清图片 (dpi=150)
-                            pix = page.get_pixmap(dpi=150)
-                            img_filename = f"{result.get_short_id()}_arch.png"
-                            img_filepath = os.path.join(IMAGES_DIR, img_filename)
-                            pix.save(img_filepath)
-                            print(f"✅ 成功截取第 {page_num} 页作为框架图！")
-                            image_md = f"\n\n**核心架构图 (Page {page_num}):**\n![Architecture Diagram](images/{img_filename})\n\n"
-                    except ImportError:
-                        print("⚠️ 提示：缺少 PyMuPDF 库，无法截取图片。请在终端运行：pip install PyMuPDF")
-                    except Exception as e:
-                        print(f"⚠️ 截取图片失败: {e}")
-
                 # 提取一句话总结用于微信推送 (增强鲁棒性)
                 summary_match = re.search(r'### 1\..*?核心一句话总结\n(.*?)(?=\n###|$)', full_response, re.S)
                 one_line_summary = summary_match.group(1).strip() if summary_match else "点击查看详细解读"
@@ -335,14 +310,10 @@ def analyze_papers_with_gemini(papers):
                 
                 print(f"📤 正在发送微信推送: {result.title}...")
                 send_wechat_markdown(wechat_msg)
-                if img_filepath and os.path.exists(img_filepath):
-                    send_wechat_image(img_filepath)
 
                 # 将分析结果保存到 Markdown 文件中
                 f_report.write(f"## 📄 [{result.title}]({result.entry_id})\n")
                 f_report.write(f"**Authors:** {', '.join([author.name for author in result.authors])}\n\n")
-                if image_md:
-                    f_report.write(image_md)
                 f_report.write(f"{full_response}\n\n")
                 f_report.write("---\n\n")
                 
