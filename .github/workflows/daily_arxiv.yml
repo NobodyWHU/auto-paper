@@ -3,8 +3,8 @@ name: Daily Arxiv Paper Analysis
 # 触发条件
 on:
   schedule:
-    # 每天北京时间早上 8:00 运行 (UTC 时间 0:00)
-    - cron: '0 0 * * *'
+    # 每周日上午北京时间 8:00 运行 (UTC 时间 0:00)
+    - cron: '0 0 * * 0'
   # 允许在 GitHub 网页端手动点击运行
   workflow_dispatch:
 
