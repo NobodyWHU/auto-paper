@@ -82,7 +82,7 @@ api_key = os.environ.get("GEMINI_API_KEY")
 if not api_key:
     raise ValueError("请设置 GEMINI_API_KEY 环境变量，例如：export GEMINI_API_KEY='你的密钥'")
 
-genai.configure(api_key=api_key)
+genai.configure(api_key=api_key, transport="rest")
 
 # 增加一段调试代码：打印当前 API Key 到底支持哪些模型
 print("👉 [调试] 正在查询当前 API Key 支持的模型列表...")
