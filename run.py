@@ -120,8 +120,12 @@ def get_daily_papers():
         ')'
     )
     
-    # 构造客户端
-    client = arxiv.Client()
+    # 构造客户端，增加延迟和重试以避免 HTTP 429 Too Many Requests
+    client = arxiv.Client(
+        page_size=100,
+        delay_seconds=5,
+        num_retries=5
+    )
     search = arxiv.Search(
         query=query,
         max_results=100, # 将最大拉取数量从 20 扩大到 100，避免漏掉近期的论文
@@ -133,8 +137,26 @@ def get_daily_papers():
     
     recent_papers = []
     
-    # 增加调试信息：看看 API 到底返回了多少数据
-    all_results = list(client.results(search))
+    # 增加网络重试机制来处理 arxiv 的搜索请求
+    max_search_retries = 3
+    all_results = []
+    for attempt in range(max_search_retries):
+        try:
+            print(f"👉 正在向 arXiv 发送搜索请求 (尝试 {attempt + 1}/{max_search_retries})...")
+            all_results = list(client.results(search))
+            break
+        except Exception as e:
+            if "HTTP 429" in str(e) or attempt == max_search_retries - 1:
+                print(f"⚠️ arXiv 接口限流或报错: {e}")
+                if attempt < max_search_retries - 1:
+                    wait_time = 10 * (attempt + 1)
+                    print(f"💤 休息 {wait_time} 秒后重试...")
+                    time.sleep(wait_time)
+                else:
+                    print("❌ 搜索失败，跳过本次执行。")
+                    return []
+            else:
+                raise e
     print(f"👉 [调试] arXiv 接口初步搜索到了 {len(all_results)} 篇论文")
     if all_results:
         print(f"👉 [调试] 最新的论文发布时间为: {all_results[0].published}")
