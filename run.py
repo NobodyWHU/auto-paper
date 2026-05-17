@@ -6,6 +6,7 @@ import os
 import json
 import time
 import re
+import random
 import requests
 import hashlib
 import base64
@@ -102,6 +103,11 @@ model = genai.GenerativeModel('gemini-3-flash-preview')
 
 
 def get_daily_papers():
+    # 增加随机休眠，避免 GitHub Actions 在整点同时发起请求导致 arXiv 接口 429 限流
+    sleep_time = random.randint(30, 120)
+    print(f"💤 为避免触发 arXiv 限流，随机休眠 {sleep_time} 秒...")
+    time.sleep(sleep_time)
+
     # 2. 构建针对“电商广告算法工程师（生成式推荐）”的专属检索词
     # 扩大覆盖面，包含大语言模型、生成式搜索、电商推荐、计算广告等核心领域
     query = (
@@ -152,7 +158,7 @@ def get_daily_papers():
             if "HTTP 429" in str(e) or attempt == max_search_retries - 1:
                 print(f"⚠️ arXiv 接口限流或报错: {e}")
                 if attempt < max_search_retries - 1:
-                    wait_time = 30 * (attempt + 1) # 大幅增加重试的等待时间，30s, 60s, 90s...
+                    wait_time = 60 * (attempt + 1) + random.randint(10, 30) # 进一步增加重试的等待时间，并加入随机抖动
                     print(f"💤 休息 {wait_time} 秒后重试...")
                     time.sleep(wait_time)
                 else:
