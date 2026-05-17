@@ -121,14 +121,15 @@ def get_daily_papers():
     )
     
     # 构造客户端，增加延迟和重试以避免 HTTP 429 Too Many Requests
+    # arXiv API 要求：避免频繁请求，page_size 设小一点，delay_seconds 设大一点
     client = arxiv.Client(
-        page_size=100,
-        delay_seconds=5,
-        num_retries=5
+        page_size=20,  # 减小 page_size，避免一次请求过多数据导致限流
+        delay_seconds=10, # 增大两次请求之间的延迟时间
+        num_retries=10    # 增加内置重试次数
     )
     search = arxiv.Search(
         query=query,
-        max_results=100, # 将最大拉取数量从 20 扩大到 100，避免漏掉近期的论文
+        max_results=40, # 将最大拉取数量减小到 40，避免大范围扫描触发风控
         sort_by=arxiv.SortCriterion.SubmittedDate
     )
     
@@ -138,18 +139,20 @@ def get_daily_papers():
     recent_papers = []
     
     # 增加网络重试机制来处理 arxiv 的搜索请求
-    max_search_retries = 3
+    max_search_retries = 5
     all_results = []
     for attempt in range(max_search_retries):
         try:
             print(f"👉 正在向 arXiv 发送搜索请求 (尝试 {attempt + 1}/{max_search_retries})...")
+            # 在外层也强制加一点延迟，防止 GitHub Actions 的高频访问
+            time.sleep(attempt * 5)
             all_results = list(client.results(search))
             break
         except Exception as e:
             if "HTTP 429" in str(e) or attempt == max_search_retries - 1:
                 print(f"⚠️ arXiv 接口限流或报错: {e}")
                 if attempt < max_search_retries - 1:
-                    wait_time = 10 * (attempt + 1)
+                    wait_time = 30 * (attempt + 1) # 大幅增加重试的等待时间，30s, 60s, 90s...
                     print(f"💤 休息 {wait_time} 秒后重试...")
                     time.sleep(wait_time)
                 else:
